@@ -1,14 +1,36 @@
 const chatWindow = document.getElementById('chat-window');
 const form = document.getElementById('chat-form');
 const messageInput = document.getElementById('message');
-const conversationId = crypto.randomUUID();
+
+const STORAGE_KEY = 'celine.conversation_id';
+const conversationId = localStorage.getItem(STORAGE_KEY) || crypto.randomUUID();
+localStorage.setItem(STORAGE_KEY, conversationId);
 const seenMessages = new Set();
 
 function appendMessage(role, text) {
-  const div = document.createElement('div');
-  div.className = `message ${role}`;
-  div.textContent = role === 'human' ? `HUMAN CLINICIAN: ${text}` : text;
-  chatWindow.appendChild(div);
+  const wrapper = document.createElement('div');
+  wrapper.className = `message-row ${role}`;
+
+  const bubble = document.createElement('div');
+  bubble.className = `message ${role}`;
+
+  const label = document.createElement('div');
+  label.className = 'message-label';
+  label.textContent = role === 'assistant' ? 'CELINE AI' : role === 'human' ? 'HUMAN CLINICIAN' : 'YOU';
+
+  const content = document.createElement('div');
+  content.className = 'message-content';
+  content.textContent = text;
+
+  const meta = document.createElement('div');
+  meta.className = 'message-meta';
+  meta.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  bubble.appendChild(label);
+  bubble.appendChild(content);
+  bubble.appendChild(meta);
+  wrapper.appendChild(bubble);
+  chatWindow.appendChild(wrapper);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
@@ -65,8 +87,10 @@ form.addEventListener('submit', async (event) => {
   }
 
   const payload = await response.json();
-  appendMessage('assistant', payload.response);
-  markSeen('assistant', payload.response);
+  if (payload.response) {
+    appendMessage('assistant', payload.response);
+    markSeen('assistant', payload.response);
+  }
 
   if (payload.requires_handoff) {
     const handoffMessage = `⚠️ Human handoff triggered: ${payload.handoff_reason}`;
@@ -77,4 +101,5 @@ form.addEventListener('submit', async (event) => {
   await refreshConversation();
 });
 
+refreshConversation();
 setInterval(refreshConversation, 3000);
