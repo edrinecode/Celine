@@ -33,3 +33,21 @@ def test_healthcheck_endpoint():
 
     assert response.status_code == 200
     assert response.json()["ok"] is True
+
+
+def test_agent_falls_back_when_llm_call_fails(monkeypatch):
+    from app import agents
+
+    class BrokenLLM:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def invoke(self, *args, **kwargs):
+            raise RuntimeError("provider unavailable")
+
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+    monkeypatch.setattr(agents, "ChatGoogleGenerativeAI", BrokenLLM)
+
+    result = agents.TriageAgent().run("headache", [])
+
+    assert "[Triage Agent fallback]" in result.summary
