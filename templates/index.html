@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Celine AI Healthcare Assistant</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Celine</h1>
+      <p>Intelligent multi-agent healthcare support assistant.</p>
+      <a href="/admin" class="admin-link">Admin Human Handoff</a>
+    </header>
+
+    <section id="chat-window" class="chat-window"></section>
+
+    <form id="chat-form" class="chat-form">
+      <textarea id="message" placeholder="Describe your symptoms or ask for care guidance..." required></textarea>
+      <button type="submit">Send</button>
+    </form>
+  </main>
+
+  <script src="/static/chat.js"></script>
+</body>
+</html>
