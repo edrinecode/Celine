@@ -26,6 +26,12 @@ def test_no_handoff_for_routine_request(tmp_path):
     assert "Celine Multi-Agent Summary" in result.response.response
 
 
+def test_no_handoff_for_simple_greeting(tmp_path):
+    coordinator = _build_coordinator(tmp_path)
+    result = coordinator.process("abc3", "hey there")
+    assert result.response.requires_handoff is False
+
+
 def test_healthcheck_endpoint():
     from app.main import app
 
@@ -74,3 +80,33 @@ def test_admin_model_update(monkeypatch, tmp_path):
 
     refreshed_page = client.get("/admin")
     assert "gemini-2.5-pro" in refreshed_page.text
+
+
+def test_human_handoff_chat_flow(monkeypatch, tmp_path):
+    monkeypatch.setenv("CELINE_DB_PATH", str(tmp_path / "handoff-chat.db"))
+
+    import app.main as main_module
+
+    main_module = importlib.reload(main_module)
+    client = TestClient(main_module.app)
+
+    conversation_id = "conv-1"
+    chat_response = client.post(
+        "/chat",
+        json={"conversation_id": conversation_id, "message": "I have chest pain now"},
+    )
+    assert chat_response.status_code == 200
+    assert chat_response.json()["requires_handoff"] is True
+
+    reply = client.post(
+        "/admin/reply",
+        data={"conversation_id": conversation_id, "message": "A clinician has joined this chat."},
+        follow_redirects=True,
+    )
+    assert reply.status_code == 200
+    assert "A clinician has joined this chat." in reply.text
+
+    history = client.get(f"/chat/history/{conversation_id}")
+    assert history.status_code == 200
+    roles = [item["role"] for item in history.json()["messages"]]
+    assert "human" in roles

@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import List
 from uuid import uuid4
@@ -14,6 +15,15 @@ class OrchestrationResult:
 
 
 class Coordinator:
+    URGENT_PATTERNS = (
+        re.compile(r"\bhigh[- ]risk\b", re.IGNORECASE),
+        re.compile(r"\bemergency\b", re.IGNORECASE),
+        re.compile(r"\burgent\b", re.IGNORECASE),
+        re.compile(r"\bchest pain\b", re.IGNORECASE),
+        re.compile(r"\bshortness of breath\b", re.IGNORECASE),
+        re.compile(r"\bsuicidal\b", re.IGNORECASE),
+    )
+
     def __init__(self, memory: ConversationMemory) -> None:
         self.memory = memory
         self.triage_agent = TriageAgent()
@@ -55,17 +65,8 @@ class Coordinator:
         return OrchestrationResult(response=response, handoff_ticket=ticket)
 
     def _aggregate(self, trace: List[AgentResult]) -> tuple[str, bool, str | None]:
-        urgent_signals = [
-            "high-risk",
-            "emergency",
-            "urgent",
-            "chest pain",
-            "shortness of breath",
-            "suicidal",
-        ]
         combined = "\n\n".join([f"{item.agent}: {item.summary}" for item in trace])
-        lowered = combined.lower()
-        requires_handoff = any(signal in lowered for signal in urgent_signals)
+        requires_handoff = any(pattern.search(combined) for pattern in self.URGENT_PATTERNS)
         reason = "Potential high-acuity concern; escalation to human clinician recommended." if requires_handoff else None
 
         final = (

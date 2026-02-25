@@ -1,7 +1,7 @@
 import os
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -40,13 +40,16 @@ def home(request: Request):
 
 
 @app.get("/admin", response_class=HTMLResponse)
-def admin(request: Request):
+def admin(request: Request, conversation_id: str | None = None):
+    selected_messages = store.get_messages(conversation_id) if conversation_id else []
     return templates.TemplateResponse(
         "admin.html",
         {
             "request": request,
             "tickets": store.list_handoff_tickets(),
             "current_model": store.get_setting("google_model") or DEFAULT_MODEL,
+            "selected_conversation_id": conversation_id,
+            "selected_messages": selected_messages,
         },
     )
 
@@ -63,6 +66,20 @@ def chat(chat_request: ChatRequest):
 def resolve_ticket(ticket_id: str = Form(...)):
     remaining = store.resolve_handoff_ticket(ticket_id=ticket_id)
     return {"ok": True, "remaining": remaining}
+
+
+@app.post("/admin/reply")
+def admin_reply(conversation_id: str = Form(...), message: str = Form(...)):
+    cleaned = message.strip()
+    if cleaned:
+        memory.add_message(conversation_id, "human", cleaned)
+    return RedirectResponse(url=f"/admin?conversation_id={conversation_id}", status_code=303)
+
+
+@app.get("/chat/history/{conversation_id}")
+def chat_history(conversation_id: str):
+    messages = memory.get_messages(conversation_id)
+    return {"conversation_id": conversation_id, "messages": messages}
 
 
 @app.post("/admin/model")
