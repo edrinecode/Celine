@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List
 from uuid import uuid4
 
-from .agents import DataAgent, DiagnosisAgent, SafetyAgent, TriageAgent
+from .agents import DataAgent, DiagnosisAgent, LeadAgent, SafetyAgent, TriageAgent
 from .memory import ConversationMemory
 from .models import AgentResult, ChatResponse, HandoffTicket
 
@@ -30,19 +30,23 @@ class Coordinator:
         self.diagnosis_agent = DiagnosisAgent()
         self.safety_agent = SafetyAgent()
         self.data_agent = DataAgent()
+        self.lead_agent = LeadAgent(
+            triage_agent=self.triage_agent,
+            safety_agent=self.safety_agent,
+            data_agent=self.data_agent,
+            diagnosis_agent=self.diagnosis_agent,
+        )
 
     def process(self, conversation_id: str, user_message: str) -> OrchestrationResult:
         self.memory.add_message(conversation_id, "user", user_message)
         history = self.memory.get_messages(conversation_id)
 
-        trace: List[AgentResult] = [
-            self.triage_agent.run(user_message, history),
-            self.diagnosis_agent.run(user_message, history),
-            self.safety_agent.run(user_message, history),
-            self.data_agent.run(user_message, history),
-        ]
+        trace: List[AgentResult] = []
+        for agent in self.lead_agent.receive_user_message(user_message):
+            trace.append(agent.run(user_message, history))
 
-        final_response, requires_handoff, reason = self._aggregate(trace)
+        requires_handoff, reason = self._handoff_decision(trace)
+        final_response = self.lead_agent.format_for_user(trace, requires_handoff)
         self.memory.add_message(conversation_id, "assistant", final_response)
 
         response = ChatResponse(
@@ -64,21 +68,8 @@ class Coordinator:
 
         return OrchestrationResult(response=response, handoff_ticket=ticket)
 
-    def _aggregate(self, trace: List[AgentResult]) -> tuple[str, bool, str | None]:
+    def _handoff_decision(self, trace: List[AgentResult]) -> tuple[bool, str | None]:
         combined = "\n\n".join([f"{item.agent}: {item.summary}" for item in trace])
         requires_handoff = any(pattern.search(combined) for pattern in self.URGENT_PATTERNS)
         reason = "Potential high-acuity concern; escalation to human clinician recommended." if requires_handoff else None
-
-        final = (
-            "Celine Multi-Agent Summary\n"
-            "--------------------------------\n"
-            f"{combined}\n\n"
-            "Suggested next step: "
-        )
-        final += (
-            "I am escalating this conversation to a human clinician now."
-            if requires_handoff
-            else "Continue with guided follow-up questions and routine care advice."
-        )
-        final += "\n\nNote: This is informational and not a definitive medical diagnosis."
-        return final, requires_handoff, reason
+        return requires_handoff, reason
