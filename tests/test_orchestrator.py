@@ -97,6 +97,26 @@ def test_greeting_only_conversation(tmp_path):
     assert "triage assistant" in result.response.response.lower()
 
 
+def test_identity_question_in_idle_routes_without_intent_dependency(tmp_path):
+    orchestrator = build_orchestrator(tmp_path)
+    result = orchestrator.process("c7a", "p7", "what is your name")
+    assert result.response.state.value == "GREETING"
+    assert "i am celine" in result.response.response.lower()
+
+def test_identity_question_after_greeting_gets_specific_identity_response(tmp_path):
+    orchestrator = build_orchestrator(tmp_path)
+    run_turns(orchestrator, "c7b", ["hello"])
+    result = orchestrator.process("c7b", "p7", "what ur name")
+    assert "i am celine" in result.response.response.lower()
+
+
+def test_unclear_follow_up_after_greeting_gets_clarifying_prompt(tmp_path):
+    orchestrator = build_orchestrator(tmp_path)
+    run_turns(orchestrator, "c7c", ["hello"])
+    result = orchestrator.process("c7c", "p7", "ok")
+    assert "what do you need help with" in result.response.response.lower()
+
+
 def test_one_question_at_a_time_enforced(tmp_path):
     orchestrator = build_orchestrator(tmp_path)
     result = orchestrator.process("c8", "p8", "I have a headache")
