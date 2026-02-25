@@ -43,6 +43,14 @@ class SQLiteStore:
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+                """
+            )
 
     def add_message(self, conversation_id: str, role: str, content: str, timestamp: datetime) -> None:
         with self._lock:
@@ -122,3 +130,23 @@ class SQLiteStore:
                 conn.execute("DELETE FROM handoff_tickets WHERE ticket_id = ?", (ticket_id,))
                 count_row = conn.execute("SELECT COUNT(*) as total FROM handoff_tickets").fetchone()
                 return int(count_row["total"])
+
+    def get_setting(self, key: str) -> str | None:
+        with self._lock:
+            with self._connect() as conn:
+                row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        if row is None:
+            return None
+        return str(row["value"])
+
+    def set_setting(self, key: str, value: str) -> None:
+        with self._lock:
+            with self._connect() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO settings (key, value)
+                    VALUES (?, ?)
+                    ON CONFLICT(key) DO UPDATE SET value=excluded.value
+                    """,
+                    (key, value),
+                )
