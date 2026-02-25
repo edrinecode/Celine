@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from dataclasses import dataclass
 from typing import List
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -61,8 +62,8 @@ class BaseAgent:
                     self.name,
                     model,
                 )
-        excerpt = " ".join(user_message.split())[:160]
-        symptom_note = excerpt or 'No symptoms provided.'
+        excerpt = " ".join(user_message.split())[:180]
+        symptom_note = excerpt or "No symptoms provided."
         return f"[{self.name} fallback] Unable to access model. Symptom note: {symptom_note}"
 
 
@@ -104,15 +105,52 @@ class DataAgent(BaseAgent):
         )
 
 
+class ConversationAgent(BaseAgent):
+    def __init__(self) -> None:
+        super().__init__(
+            name="Conversation Agent",
+            system_prompt=(
+                "Handle social/user-experience requests naturally. "
+                "Introduce yourself as Celine when asked for your name."
+            ),
+        )
+
+    def run(self, user_message: str, history: List[ChatMessage]) -> AgentResult:
+        message = user_message.strip().lower()
+        if re.search(r"\b(what('?s|\s+is)\s+(your|ur)\s+name|who\s+are\s+you|your\s+name)\b", message):
+            summary = (
+                "I'm Celine. I can help with initial clinical triage and care guidance. "
+                "If you'd like, tell me what symptom is bothering you most right now."
+            )
+        elif re.search(r"^\s*(hi|hello|hey|yo|good\s+(morning|afternoon|evening))\b", message):
+            summary = (
+                "Hi — I’m Celine. I’m here with you. 😊 "
+                "Whenever you’re ready, share any symptom or health concern and I’ll guide you step by step."
+            )
+        else:
+            summary = (
+                "I can absolutely help with that. I’m Celine, and I can offer initial clinical triage guidance. "
+                "Share your symptoms and I’ll walk through them with you carefully."
+            )
+        return AgentResult(agent=self.name, summary=summary)
+
+
+@dataclass
+class RoutingDecision:
+    mode: str
+    agents: List[BaseAgent]
+
+
 class LeadAgent:
-    GREETING_PATTERNS = (
-        re.compile(r"^\s*(hi|hello|hey|good\s+(morning|afternoon|evening))\b", re.IGNORECASE),
-        re.compile(r"^\s*(thanks|thank you)\b", re.IGNORECASE),
-    )
     ACKNOWLEDGMENT_PATTERNS = (
         re.compile(r"^\s*(ok|okay|k|kk|got it|understood|sure|yep|yes|no|nah|nope)\s*[.!?]*\s*$", re.IGNORECASE),
-        re.compile(r"^\s*(that was not a symptom|not a symptom|i am just saying hi)\b", re.IGNORECASE),
-        re.compile(r"^\s*(how are you|what can you do)\b", re.IGNORECASE),
+        re.compile(r"^\s*(thanks|thank\s+you|thx)\b", re.IGNORECASE),
+        re.compile(r"^\s*(i am just saying hi|not a symptom)\b", re.IGNORECASE),
+    )
+
+    PROFILE_PATTERNS = (
+        re.compile(r"\b(what('?s|\s+is)\s+(your|ur)\s+name|who\s+are\s+you|your\s+name)\b", re.IGNORECASE),
+        re.compile(r"\bwhat\s+can\s+you\s+do\b", re.IGNORECASE),
     )
 
     CLINICAL_PATTERNS = (
@@ -126,6 +164,12 @@ class LeadAgent:
         re.compile(r"\bheadache\b", re.IGNORECASE),
         re.compile(r"\bbreath\w*\b", re.IGNORECASE),
         re.compile(r"\ballerg\w*\b", re.IGNORECASE),
+        re.compile(r"\bsymptom\w*\b", re.IGNORECASE),
+        re.compile(r"\bsick\b", re.IGNORECASE),
+    )
+
+    GREETING_PATTERNS = (
+        re.compile(r"^\s*(hi|hello|hey|yo|good\s+(morning|afternoon|evening))\b", re.IGNORECASE),
     )
 
     def __init__(
@@ -134,6 +178,7 @@ class LeadAgent:
         safety_agent: SafetyAgent,
         data_agent: DataAgent,
         diagnosis_agent: DiagnosisAgent,
+        conversation_agent: ConversationAgent,
         system_prompt: str | None = None,
     ) -> None:
         self.name = "Lead Agent"
@@ -142,31 +187,39 @@ class LeadAgent:
         self.safety_agent = safety_agent
         self.data_agent = data_agent
         self.diagnosis_agent = diagnosis_agent
+        self.conversation_agent = conversation_agent
 
-    def receive_user_message(self, user_message: str):
+    def receive_user_message(self, user_message: str) -> RoutingDecision:
         message = user_message.strip()
-        is_greeting = any(pattern.search(message) for pattern in self.GREETING_PATTERNS)
-        is_acknowledgment = any(pattern.search(message) for pattern in self.ACKNOWLEDGMENT_PATTERNS)
+        token_count = len(message.split())
+
         has_clinical_signal = any(pattern.search(message) for pattern in self.CLINICAL_PATTERNS)
+        is_profile_query = any(pattern.search(message) for pattern in self.PROFILE_PATTERNS)
+        is_ack = any(pattern.search(message) for pattern in self.ACKNOWLEDGMENT_PATTERNS)
+        is_greeting = any(pattern.search(message) for pattern in self.GREETING_PATTERNS)
 
-        selected = [self.triage_agent]
-        if (is_greeting or is_acknowledgment or len(message.split()) <= 3) and not has_clinical_signal:
-            return selected
+        if is_profile_query or (is_greeting and not has_clinical_signal) or (is_ack and not has_clinical_signal):
+            return RoutingDecision(mode="social", agents=[self.conversation_agent])
 
-        selected.append(self.safety_agent)
-        if has_clinical_signal or len(message.split()) >= 6:
+        selected: List[BaseAgent] = [self.triage_agent]
+        if has_clinical_signal or token_count >= 5:
+            selected.append(self.safety_agent)
+        if has_clinical_signal or token_count >= 8:
             selected.append(self.data_agent)
-        if has_clinical_signal and len(message.split()) >= 8:
+        if has_clinical_signal and token_count >= 10:
             selected.append(self.diagnosis_agent)
-        return selected
 
-    def format_for_user(self, agent_results: List[AgentResult], requires_handoff: bool, history: List[ChatMessage]) -> str:
-        if self._is_social_only(agent_results):
-            return (
-                "Hi — I’m here with you. 😊 "
-                "Whenever you’re ready, share any symptom or health concern and I’ll guide you step by step. "
-                "If you just want to chat briefly first, that’s okay too."
-            )
+        return RoutingDecision(mode="clinical", agents=selected)
+
+    def format_for_user(
+        self,
+        routing_decision: RoutingDecision,
+        agent_results: List[AgentResult],
+        requires_handoff: bool,
+        history: List[ChatMessage],
+    ) -> str:
+        if routing_decision.mode == "social":
+            return agent_results[0].summary if agent_results else "Hi — I’m Celine. How can I help today?"
 
         if requires_handoff:
             return (
@@ -184,12 +237,10 @@ class LeadAgent:
 
         return (
             f"{opening} {continuity}"
-            "I can help you narrow this down with a few quick questions: "
-            "when did this start, how severe is it (0–10), and do you have any red-flag symptoms "
-            "like trouble breathing, chest pain, confusion, or fainting?\n\n"
+            "Here’s what I suggest next: tell me when this started, your severity (0–10), and whether you have "
+            "red-flag symptoms like trouble breathing, chest pain, confusion, fainting, severe dehydration, or very high fever.\n\n"
             "I can provide informational guidance, but this is not a definitive diagnosis."
         )
-
 
     @staticmethod
     def _build_continuity_note(history: List[ChatMessage]) -> str:
@@ -198,10 +249,6 @@ class LeadAgent:
             return ""
         prior_context = LeadAgent._compact(previous_user_messages[-2], limit=120)
         return f"From earlier, I noted: '{prior_context}'. "
-
-    @staticmethod
-    def _is_social_only(agent_results: List[AgentResult]) -> bool:
-        return len(agent_results) == 1 and agent_results[0].agent == "Triage Agent"
 
     @staticmethod
     def _summary_for(agent_results: List[AgentResult], agent_name: str) -> str:

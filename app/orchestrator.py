@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List
 from uuid import uuid4
 
-from .agents import DataAgent, DiagnosisAgent, LeadAgent, SafetyAgent, TriageAgent
+from .agents import ConversationAgent, DataAgent, DiagnosisAgent, LeadAgent, SafetyAgent, TriageAgent
 from .memory import ConversationMemory
 from .models import AgentResult, ChatResponse, HandoffTicket
 
@@ -30,11 +30,13 @@ class Coordinator:
         self.diagnosis_agent = DiagnosisAgent()
         self.safety_agent = SafetyAgent()
         self.data_agent = DataAgent()
+        self.conversation_agent = ConversationAgent()
         self.lead_agent = LeadAgent(
             triage_agent=self.triage_agent,
             safety_agent=self.safety_agent,
             data_agent=self.data_agent,
             diagnosis_agent=self.diagnosis_agent,
+            conversation_agent=self.conversation_agent,
         )
 
     def process(self, conversation_id: str, user_message: str) -> OrchestrationResult:
@@ -52,11 +54,12 @@ class Coordinator:
             return OrchestrationResult(response=response, handoff_ticket=None)
 
         trace: List[AgentResult] = []
-        for agent in self.lead_agent.receive_user_message(user_message):
+        routing = self.lead_agent.receive_user_message(user_message)
+        for agent in routing.agents:
             trace.append(agent.run(user_message, history))
 
-        requires_handoff, reason = self._handoff_decision(trace, user_message)
-        final_response = self.lead_agent.format_for_user(trace, requires_handoff, history)
+        requires_handoff, reason = self._handoff_decision(trace, user_message, routing.mode)
+        final_response = self.lead_agent.format_for_user(routing, trace, requires_handoff, history)
         self.memory.add_message(conversation_id, "assistant", final_response)
 
         response = ChatResponse(
@@ -78,7 +81,10 @@ class Coordinator:
 
         return OrchestrationResult(response=response, handoff_ticket=ticket)
 
-    def _handoff_decision(self, trace: List[AgentResult], user_message: str) -> tuple[bool, str | None]:
+    def _handoff_decision(self, trace: List[AgentResult], user_message: str, mode: str) -> tuple[bool, str | None]:
+        if mode == "social":
+            return False, None
+
         user_signal = any(pattern.search(user_message) for pattern in self.URGENT_PATTERNS)
         safety_signal = any(
             item.agent == "Safety Agent" and item.summary.lower().startswith("potential high-risk symptoms detected")
@@ -87,7 +93,6 @@ class Coordinator:
         requires_handoff = user_signal or safety_signal
         reason = "Potential high-acuity concern; escalation to human clinician recommended." if requires_handoff else None
         return requires_handoff, reason
-
 
     @staticmethod
     def _human_clinician_active(history) -> bool:
