@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import List
 
@@ -32,9 +33,22 @@ class BaseAgent:
     def _invoke_llm(self, prompt: str) -> str:
         api_key = os.getenv("GOOGLE_API_KEY")
         if api_key and ChatGoogleGenerativeAI:
-            llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.2)
-            result = llm.invoke([SystemMessage(content="You are a healthcare support AI agent."), HumanMessage(content=prompt)])
-            return result.content
+            model = os.getenv("GOOGLE_MODEL", "gemini-1.5-flash")
+            llm = ChatGoogleGenerativeAI(model=model, temperature=0.2)
+            try:
+                result = llm.invoke(
+                    [
+                        SystemMessage(content="You are a healthcare support AI agent."),
+                        HumanMessage(content=prompt),
+                    ]
+                )
+                return result.content
+            except Exception:  # pragma: no cover - exercised through mocking in unit tests
+                logging.exception(
+                    "LLM invocation failed for %s with model %s. Using fallback response.",
+                    self.name,
+                    model,
+                )
         return f"[{self.name} fallback] {prompt[:260]}..."
 
 
