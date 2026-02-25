@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from .memory import ConversationMemory
 from .models import ChatRequest
 from .orchestrator import Coordinator
+from .prompts import DEFAULT_PROMPTS, PROMPT_KEYS, PROMPT_LABELS
 from .storage import SQLiteStore
 
 app = FastAPI(title="Celine Healthcare Multi-Agent")
@@ -27,6 +28,26 @@ def _initialize_model_setting() -> str:
 
 
 DEFAULT_MODEL = _initialize_model_setting()
+
+
+def _initialize_prompt_settings() -> dict[str, str]:
+    prompts: dict[str, str] = {}
+    for key, default_prompt in DEFAULT_PROMPTS.items():
+        current = store.get_setting(key) or default_prompt
+        store.set_setting(key, current)
+        prompts[key] = current
+    return prompts
+
+
+def _apply_prompts_to_agents(prompts: dict[str, str]) -> None:
+    coordinator.lead_agent.system_prompt = prompts[PROMPT_KEYS.lead]
+    coordinator.triage_agent.system_prompt = prompts[PROMPT_KEYS.triage]
+    coordinator.safety_agent.system_prompt = prompts[PROMPT_KEYS.safety]
+    coordinator.data_agent.system_prompt = prompts[PROMPT_KEYS.data]
+    coordinator.diagnosis_agent.system_prompt = prompts[PROMPT_KEYS.diagnosis]
+
+PROMPT_SETTINGS = _initialize_prompt_settings()
+_apply_prompts_to_agents(PROMPT_SETTINGS)
 
 
 @app.get("/health")
@@ -50,9 +71,29 @@ def admin(request: Request, conversation_id: str | None = None):
             "current_model": store.get_setting("google_model") or DEFAULT_MODEL,
             "selected_conversation_id": conversation_id,
             "selected_messages": selected_messages,
+            "prompt_entries": [
+                {"key": key, "label": PROMPT_LABELS[key], "value": store.get_setting(key) or DEFAULT_PROMPTS[key]}
+                for key in DEFAULT_PROMPTS
+            ],
         },
     )
 
+
+
+
+@app.post("/admin/prompt")
+def update_prompt(key: str = Form(...), value: str = Form(...)):
+    cleaned_key = key.strip()
+    cleaned_value = value.strip()
+
+    if cleaned_key not in DEFAULT_PROMPTS:
+        return {"ok": False, "error": "Unknown prompt key."}
+    if not cleaned_value:
+        return {"ok": False, "error": "Prompt cannot be empty."}
+
+    store.set_setting(cleaned_key, cleaned_value)
+    _apply_prompts_to_agents({k: store.get_setting(k) or DEFAULT_PROMPTS[k] for k in DEFAULT_PROMPTS})
+    return RedirectResponse(url="/admin", status_code=303)
 
 @app.post("/chat")
 def chat(chat_request: ChatRequest):

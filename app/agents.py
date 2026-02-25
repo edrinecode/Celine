@@ -6,6 +6,7 @@ from typing import List
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from .models import AgentResult, ChatMessage
+from .prompts import DEFAULT_PROMPTS, PROMPT_KEYS
 from .tools import ClinicalTools
 
 try:
@@ -66,30 +67,26 @@ class BaseAgent:
 
 
 class TriageAgent(BaseAgent):
-    def __init__(self) -> None:
+    def __init__(self, system_prompt: str | None = None) -> None:
         super().__init__(
             name="Triage Agent",
-            system_prompt=(
-                "Determine urgency level (emergency, urgent, routine) and identify immediate next steps."
-            ),
+            system_prompt=system_prompt or DEFAULT_PROMPTS[PROMPT_KEYS.triage],
         )
 
 
 class DiagnosisAgent(BaseAgent):
-    def __init__(self) -> None:
+    def __init__(self, system_prompt: str | None = None) -> None:
         super().__init__(
             name="Diagnosis Agent",
-            system_prompt="Generate possible differentials and suggest what data is missing.",
+            system_prompt=system_prompt or DEFAULT_PROMPTS[PROMPT_KEYS.diagnosis],
         )
 
 
 class SafetyAgent(BaseAgent):
-    def __init__(self) -> None:
+    def __init__(self, system_prompt: str | None = None) -> None:
         super().__init__(
             name="Safety Agent",
-            system_prompt=(
-                "Focus on patient safety constraints, contraindications, and when to escalate to human care."
-            ),
+            system_prompt=system_prompt or DEFAULT_PROMPTS[PROMPT_KEYS.safety],
         )
 
     def run(self, user_message: str, history: List[ChatMessage]) -> AgentResult:
@@ -100,23 +97,24 @@ class SafetyAgent(BaseAgent):
 
 
 class DataAgent(BaseAgent):
-    def __init__(self) -> None:
+    def __init__(self, system_prompt: str | None = None) -> None:
         super().__init__(
             name="Data Agent",
-            system_prompt="Extract structured facts and identify missing fields needed for triage.",
+            system_prompt=system_prompt or DEFAULT_PROMPTS[PROMPT_KEYS.data],
         )
 
 
 class LeadAgent:
-    SYSTEM_PROMPT = (
-        "You are the lead clinical support agent behaving like a careful triage nurse: "
-        "empathetic, concise, safety-first, and escalation-aware."
-    )
-
     GREETING_PATTERNS = (
         re.compile(r"^\s*(hi|hello|hey|good\s+(morning|afternoon|evening))\b", re.IGNORECASE),
         re.compile(r"^\s*(thanks|thank you)\b", re.IGNORECASE),
     )
+    ACKNOWLEDGMENT_PATTERNS = (
+        re.compile(r"^\s*(ok|okay|k|kk|got it|understood|sure|yep|yes|no|nah|nope)\s*[.!?]*\s*$", re.IGNORECASE),
+        re.compile(r"^\s*(that was not a symptom|not a symptom|i am just saying hi)\b", re.IGNORECASE),
+        re.compile(r"^\s*(how are you|what can you do)\b", re.IGNORECASE),
+    )
+
     CLINICAL_PATTERNS = (
         re.compile(r"\bpain\b", re.IGNORECASE),
         re.compile(r"\bfever\b", re.IGNORECASE),
@@ -136,9 +134,10 @@ class LeadAgent:
         safety_agent: SafetyAgent,
         data_agent: DataAgent,
         diagnosis_agent: DiagnosisAgent,
+        system_prompt: str | None = None,
     ) -> None:
         self.name = "Lead Agent"
-        self.system_prompt = self.SYSTEM_PROMPT
+        self.system_prompt = system_prompt or DEFAULT_PROMPTS[PROMPT_KEYS.lead]
         self.triage_agent = triage_agent
         self.safety_agent = safety_agent
         self.data_agent = data_agent
@@ -147,10 +146,11 @@ class LeadAgent:
     def receive_user_message(self, user_message: str):
         message = user_message.strip()
         is_greeting = any(pattern.search(message) for pattern in self.GREETING_PATTERNS)
+        is_acknowledgment = any(pattern.search(message) for pattern in self.ACKNOWLEDGMENT_PATTERNS)
         has_clinical_signal = any(pattern.search(message) for pattern in self.CLINICAL_PATTERNS)
 
         selected = [self.triage_agent]
-        if is_greeting and not has_clinical_signal:
+        if (is_greeting or is_acknowledgment or len(message.split()) <= 3) and not has_clinical_signal:
             return selected
 
         selected.append(self.safety_agent)
@@ -163,9 +163,9 @@ class LeadAgent:
     def format_for_user(self, agent_results: List[AgentResult], requires_handoff: bool, history: List[ChatMessage]) -> str:
         if self._is_social_only(agent_results):
             return (
-                "Hi — I’m doing well, and I’m here for you. 😊 "
-                "If you want, you can share what symptoms or health concern you’re dealing with, "
-                "and I’ll guide you step by step."
+                "Hi — I’m here with you. 😊 "
+                "Whenever you’re ready, share any symptom or health concern and I’ll guide you step by step. "
+                "If you just want to chat briefly first, that’s okay too."
             )
 
         if requires_handoff:

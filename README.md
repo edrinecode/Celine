@@ -85,6 +85,7 @@ Then manually verify:
 2. Admin queue at `/admin` shows any new high-acuity handoff tickets.
 3. You can resolve a ticket from `/admin`.
 4. You can edit the active Gemini model from `/admin` (saved in SQLite settings).
+5. You can edit each agent's system prompt from `/admin` (Lead/Triage/Safety/Data/Diagnosis).
 
 ## About the `google.generativeai` deprecation warning
 
