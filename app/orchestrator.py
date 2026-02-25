@@ -41,12 +41,22 @@ class Coordinator:
         self.memory.add_message(conversation_id, "user", user_message)
         history = self.memory.get_messages(conversation_id)
 
+        if self._human_clinician_active(history):
+            response = ChatResponse(
+                conversation_id=conversation_id,
+                response="",
+                agent_trace=[],
+                requires_handoff=False,
+                handoff_reason=None,
+            )
+            return OrchestrationResult(response=response, handoff_ticket=None)
+
         trace: List[AgentResult] = []
         for agent in self.lead_agent.receive_user_message(user_message):
             trace.append(agent.run(user_message, history))
 
         requires_handoff, reason = self._handoff_decision(trace, user_message)
-        final_response = self.lead_agent.format_for_user(trace, requires_handoff)
+        final_response = self.lead_agent.format_for_user(trace, requires_handoff, history)
         self.memory.add_message(conversation_id, "assistant", final_response)
 
         response = ChatResponse(
@@ -77,3 +87,8 @@ class Coordinator:
         requires_handoff = user_signal or safety_signal
         reason = "Potential high-acuity concern; escalation to human clinician recommended." if requires_handoff else None
         return requires_handoff, reason
+
+
+    @staticmethod
+    def _human_clinician_active(history) -> bool:
+        return any(message.role == "human" for message in history)

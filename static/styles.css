@@ -78,3 +78,58 @@ button, .admin-link {
   padding: 12px;
   margin-bottom: 12px;
 }
+
+
+.message-row {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.message-row.user {
+  justify-content: flex-end;
+}
+
+.message-row.assistant,
+.message-row.human {
+  justify-content: flex-start;
+}
+
+.message {
+  max-width: min(78%, 680px);
+  border: 1px solid transparent;
+  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.35);
+}
+
+.message.user {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: #60a5fa;
+}
+
+.message.assistant {
+  background: linear-gradient(135deg, #0f766e, #065f46);
+  border-color: #2dd4bf;
+}
+
+.message.human {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  border-color: #c4b5fd;
+}
+
+.message-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #dbeafe;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.message-content {
+  line-height: 1.45;
+}
+
+.message-meta {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: rgba(226, 232, 240, 0.75);
+}

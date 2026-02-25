@@ -20,7 +20,8 @@ class BaseAgent:
         self.system_prompt = system_prompt
 
     def run(self, user_message: str, history: List[ChatMessage]) -> AgentResult:
-        context = "\n".join([f"{m.role}: {m.content}" for m in history[-6:]])
+        recent_history = history[-12:]
+        context = "\n".join([f"{m.timestamp.isoformat()} | {m.role}: {m.content}" for m in recent_history])
         prompt = (
             f"{self.system_prompt}\n"
             f"Conversation context:\n{context}\n"
@@ -159,7 +160,7 @@ class LeadAgent:
             selected.append(self.diagnosis_agent)
         return selected
 
-    def format_for_user(self, agent_results: List[AgentResult], requires_handoff: bool) -> str:
+    def format_for_user(self, agent_results: List[AgentResult], requires_handoff: bool, history: List[ChatMessage]) -> str:
         if self._is_social_only(agent_results):
             return (
                 "Hi — I’m doing well, and I’m here for you. 😊 "
@@ -177,16 +178,26 @@ class LeadAgent:
 
         triage_summary = self._summary_for(agent_results, "Triage Agent")
         opening = "Thanks for sharing that."
+        continuity = self._build_continuity_note(history)
         if "urgent" in triage_summary.lower():
             opening = "Thanks for sharing that — this sounds important to assess promptly."
 
         return (
-            f"{opening} "
+            f"{opening} {continuity}"
             "I can help you narrow this down with a few quick questions: "
             "when did this start, how severe is it (0–10), and do you have any red-flag symptoms "
             "like trouble breathing, chest pain, confusion, or fainting?\n\n"
             "I can provide informational guidance, but this is not a definitive diagnosis."
         )
+
+
+    @staticmethod
+    def _build_continuity_note(history: List[ChatMessage]) -> str:
+        previous_user_messages = [item.content for item in history if item.role == "user"]
+        if len(previous_user_messages) < 2:
+            return ""
+        prior_context = LeadAgent._compact(previous_user_messages[-2], limit=120)
+        return f"From earlier, I noted: '{prior_context}'. "
 
     @staticmethod
     def _is_social_only(agent_results: List[AgentResult]) -> bool:

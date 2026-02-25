@@ -68,7 +68,7 @@ def test_lead_agent_handles_routing_and_formatting(tmp_path, monkeypatch):
         called["routed"] = True
         return [coordinator.triage_agent]
 
-    def fake_format(trace, requires_handoff):
+    def fake_format(trace, requires_handoff, history):
         called["formatted"] = True
         return "lead-formatted-response"
 
@@ -186,3 +186,30 @@ def test_human_handoff_chat_flow(monkeypatch, tmp_path):
     assert history.status_code == 200
     roles = [item["role"] for item in history.json()["messages"]]
     assert "human" in roles
+
+
+
+def test_ai_pauses_once_human_clinician_has_joined(monkeypatch, tmp_path):
+    monkeypatch.setenv("CELINE_DB_PATH", str(tmp_path / "human-takeover.db"))
+
+    import app.main as main_module
+
+    main_module = importlib.reload(main_module)
+    client = TestClient(main_module.app)
+
+    conversation_id = "conv-human-takeover"
+    joined = client.post(
+        "/admin/reply",
+        data={"conversation_id": conversation_id, "message": "Hi, clinician here. I'll take over."},
+        follow_redirects=True,
+    )
+    assert joined.status_code == 200
+
+    followup = client.post(
+        "/chat",
+        json={"conversation_id": conversation_id, "message": "I have another symptom update"},
+    )
+    assert followup.status_code == 200
+    payload = followup.json()
+    assert payload["response"] == ""
+    assert payload["agent_trace"] == []
