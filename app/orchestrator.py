@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +29,12 @@ class OrchestrationResult:
 
 class DeterministicOrchestrator:
     MIN_INTENT_CONFIDENCE = 0.55
+    IDENTITY_PATTERNS = re.compile(
+        r"\b(who\s+are\s+you|what('s|\s+is)\s+your\s+name|ur\s+name|your\s+name)\b", re.IGNORECASE
+    )
+    IDENTITY_REPLY = (
+        "I am Celine, the hospital triage assistant. I can help with symptom triage or route front-desk requests."
+    )
 
     def __init__(self, store: SQLiteStore, rules_path: str = "app/config/clinical_rules.json") -> None:
         self.store = store
@@ -57,6 +64,10 @@ class DeterministicOrchestrator:
             return self._finalize(conversation_id, session, message, requires_handoff, reason)
 
         if session.state == TriageState.IDLE:
+            if self._is_identity_question(user_message):
+                self._transition(session, TriageState.GREETING, "identity_route", {})
+                return self._finalize(conversation_id, session, self.IDENTITY_REPLY, False, None)
+
             intent = self.intent_agent.classify(user_message)
             self._log(session, "intent_classifier", "classified", intent.model_dump())
             if intent.confidence < self.MIN_INTENT_CONFIDENCE:
@@ -79,6 +90,9 @@ class DeterministicOrchestrator:
                 return self._finalize(conversation_id, session, msg, False, None)
 
         if session.state in {TriageState.GREETING, TriageState.IDLE}:
+            if self._is_identity_question(user_message):
+                return self._finalize(conversation_id, session, self.IDENTITY_REPLY, False, None)
+
             intent = self.intent_agent.classify(user_message)
             if intent.intent == "medical_symptom":
                 self._transition(session, TriageState.INTAKE, "symptom_detected_post_greeting", {})
@@ -122,6 +136,9 @@ class DeterministicOrchestrator:
         self._transition(session, TriageState.EMERGENCY, "failsafe_default", {})
         self._transition(session, TriageState.CLOSED, "failsafe_closed", {})
         return self._finalize(conversation_id, session, fallback, True, "Failsafe default")
+
+    def _is_identity_question(self, message: str) -> bool:
+        return bool(self.IDENTITY_PATTERNS.search(message.strip()))
 
     def _transition(self, session: TriageSession, new_state: TriageState, reason: str, details: dict) -> None:
         old_state = session.state

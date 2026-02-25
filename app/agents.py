@@ -67,6 +67,8 @@ class FrontDeskAgent:
             return (
                 "I can help with front-desk support and triage routing. For billing or records, a staff member can assist you directly."
             )
+        if intent == "unclear":
+            return "I can help with symptom triage, appointments, or admin questions. What do you need help with?"
         return "Hello, I am the hospital triage assistant. Tell me how I can help today."
 
 
