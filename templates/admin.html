@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Celine Admin Handoff</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Human Handoff Queue</h1>
+      <a href="/" class="admin-link">Back to Chat</a>
+    </header>
+
+    <section class="tickets">
+      {% if tickets %}
+        {% for ticket in tickets %}
+          <article class="ticket">
+            <h3>Ticket {{ ticket.ticket_id }}</h3>
+            <p><strong>Conversation:</strong> {{ ticket.conversation_id }}</p>
+            <p><strong>Reason:</strong> {{ ticket.reason }}</p>
+            <p><strong>User message:</strong> {{ ticket.user_message }}</p>
+            <p><strong>Created:</strong> {{ ticket.created_at }}</p>
+            <form method="post" action="/admin/resolve">
+              <input type="hidden" name="ticket_id" value="{{ ticket.ticket_id }}" />
+              <button type="submit">Mark Resolved</button>
+            </form>
+          </article>
+        {% endfor %}
+      {% else %}
+        <p>No handoff tickets yet.</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>
