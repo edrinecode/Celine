@@ -38,6 +38,12 @@ body {
 
 .user { background: #1d4ed8; }
 .assistant { background: #065f46; }
+.human { background: #7c3aed; }
+
+.admin-chat-window {
+  margin-bottom: 12px;
+  max-height: 45vh;
+}
 
 .chat-form {
   margin-top: 16px;

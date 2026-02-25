@@ -13,8 +13,6 @@
       <a href="/" class="admin-link">Back to Chat</a>
     </header>
 
-
-
     <section class="ticket">
       <h2>AI Model</h2>
       <p><strong>Current:</strong> {{ current_model }}</p>
@@ -26,6 +24,7 @@
     </section>
 
     <section class="tickets">
+      <h2>Escalation Tickets</h2>
       {% if tickets %}
         {% for ticket in tickets %}
           <article class="ticket">
@@ -34,6 +33,9 @@
             <p><strong>Reason:</strong> {{ ticket.reason }}</p>
             <p><strong>User message:</strong> {{ ticket.user_message }}</p>
             <p><strong>Created:</strong> {{ ticket.created_at }}</p>
+            <p>
+              <a class="admin-link" href="/admin?conversation_id={{ ticket.conversation_id }}">Join Conversation</a>
+            </p>
             <form method="post" action="/admin/resolve">
               <input type="hidden" name="ticket_id" value="{{ ticket.ticket_id }}" />
               <button type="submit">Mark Resolved</button>
@@ -42,6 +44,26 @@
         {% endfor %}
       {% else %}
         <p>No handoff tickets yet.</p>
+      {% endif %}
+    </section>
+
+    <section class="ticket">
+      <h2>Human Chat Handoff</h2>
+      {% if selected_conversation_id %}
+        <p><strong>Joined conversation:</strong> {{ selected_conversation_id }}</p>
+        <div class="chat-window admin-chat-window">
+          {% for message in selected_messages %}
+            <div class="message {{ message.role }}">{{ message.role|upper }}: {{ message.content }}</div>
+          {% endfor %}
+        </div>
+
+        <form class="chat-form" method="post" action="/admin/reply">
+          <input type="hidden" name="conversation_id" value="{{ selected_conversation_id }}" />
+          <textarea name="message" placeholder="Send message as human clinician..." required></textarea>
+          <button type="submit">Send Human Reply</button>
+        </form>
+      {% else %}
+        <p>Select <strong>Join Conversation</strong> from a ticket to start chatting with the patient.</p>
       {% endif %}
     </section>
   </main>
