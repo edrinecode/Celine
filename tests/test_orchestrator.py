@@ -1,3 +1,4 @@
+from fastapi.testclient import TestClient
 from pathlib import Path
 
 from app.memory import ConversationMemory
@@ -21,3 +22,14 @@ def test_no_handoff_for_routine_request(tmp_path):
     coordinator = _build_coordinator(tmp_path)
     result = coordinator.process("abc2", "I need advice for mild seasonal allergies")
     assert "Celine Multi-Agent Summary" in result.response.response
+
+
+
+def test_healthcheck_endpoint():
+    from app.main import app
+
+    client = TestClient(app)
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
