@@ -40,6 +40,12 @@ def test_no_handoff_for_simple_greeting(tmp_path):
     assert consulted_agents == ["Triage Agent"]
 
 
+def test_no_handoff_for_non_clinical_short_message(tmp_path):
+    coordinator = _build_coordinator(tmp_path)
+    result = coordinator.process("abc3b", "hy")
+    assert result.response.requires_handoff is False
+
+
 def test_clinical_message_selects_additional_agents(tmp_path):
     coordinator = _build_coordinator(tmp_path)
     result = coordinator.process("abc4", "I have a headache and mild fever since yesterday morning")
@@ -102,6 +108,32 @@ def test_agent_falls_back_when_llm_call_fails(monkeypatch):
     result = agents.TriageAgent().run("headache", [])
 
     assert "[Triage Agent fallback]" in result.summary
+
+
+def test_agent_uses_agent_specific_system_prompt(monkeypatch):
+    from app import agents
+
+    captured = {"system": ""}
+
+    class RecordingLLM:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def invoke(self, messages):
+            captured["system"] = messages[0].content
+
+            class Response:
+                content = "ok"
+
+            return Response()
+
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+    monkeypatch.setattr(agents, "ChatGoogleGenerativeAI", RecordingLLM)
+
+    result = agents.SafetyAgent().run("headache", [])
+    assert result.summary
+    assert "System directive:" in captured["system"]
+    assert "Focus on patient safety constraints" in captured["system"]
 
 
 def test_admin_model_update(monkeypatch, tmp_path):
