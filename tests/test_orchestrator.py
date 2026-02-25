@@ -23,13 +23,51 @@ def test_handoff_for_high_risk_signal(tmp_path):
 def test_no_handoff_for_routine_request(tmp_path):
     coordinator = _build_coordinator(tmp_path)
     result = coordinator.process("abc2", "I need advice for mild seasonal allergies")
-    assert "Celine Multi-Agent Summary" in result.response.response
+    assert "## Celine Lead Agent Summary" in result.response.response
 
 
 def test_no_handoff_for_simple_greeting(tmp_path):
     coordinator = _build_coordinator(tmp_path)
     result = coordinator.process("abc3", "hey there")
     assert result.response.requires_handoff is False
+    consulted_agents = [entry.agent for entry in result.response.agent_trace]
+    assert consulted_agents == ["Triage Agent"]
+
+
+def test_clinical_message_selects_additional_agents(tmp_path):
+    coordinator = _build_coordinator(tmp_path)
+    result = coordinator.process("abc4", "I have a headache and mild fever since yesterday morning")
+
+    consulted_agents = [entry.agent for entry in result.response.agent_trace]
+    assert "Triage Agent" in consulted_agents
+    assert "Safety Agent" in consulted_agents
+    assert "Data Agent" in consulted_agents
+    assert "Diagnosis Agent" in consulted_agents
+
+
+
+
+def test_lead_agent_handles_routing_and_formatting(tmp_path, monkeypatch):
+    coordinator = _build_coordinator(tmp_path)
+
+    called = {"routed": False, "formatted": False}
+
+    def fake_receive(message):
+        called["routed"] = True
+        return [coordinator.triage_agent]
+
+    def fake_format(trace, requires_handoff):
+        called["formatted"] = True
+        return "lead-formatted-response"
+
+    monkeypatch.setattr(coordinator.lead_agent, "receive_user_message", fake_receive)
+    monkeypatch.setattr(coordinator.lead_agent, "format_for_user", fake_format)
+
+    result = coordinator.process("abc5", "hello")
+
+    assert called["routed"] is True
+    assert called["formatted"] is True
+    assert result.response.response == "lead-formatted-response"
 
 
 def test_healthcheck_endpoint():
