@@ -28,10 +28,14 @@ class BaseAgent:
             f"Current UTC time: {ClinicalTools.timestamp_tool()}\n"
             "Respond with concise clinical support summary, not final diagnosis."
         )
-        summary = self._invoke_llm(prompt, user_message=user_message)
+        summary = self._invoke_llm(
+            prompt,
+            user_message=user_message,
+            system_prompt=self.system_prompt,
+        )
         return AgentResult(agent=self.name, summary=summary)
 
-    def _invoke_llm(self, prompt: str, user_message: str = "") -> str:
+    def _invoke_llm(self, prompt: str, user_message: str = "", system_prompt: str = "") -> str:
         api_key = os.getenv("GOOGLE_API_KEY")
         if api_key and ChatGoogleGenerativeAI:
             model = os.getenv("GOOGLE_MODEL", "gemini-1.5-flash")
@@ -39,7 +43,12 @@ class BaseAgent:
             try:
                 result = llm.invoke(
                     [
-                        SystemMessage(content="You are a healthcare support AI agent."),
+                        SystemMessage(
+                            content=(
+                                f"You are {self.name}, a healthcare support AI agent. "
+                                f"System directive: {system_prompt}"
+                            )
+                        ),
                         HumanMessage(content=prompt),
                     ]
                 )
@@ -98,6 +107,11 @@ class DataAgent(BaseAgent):
 
 
 class LeadAgent:
+    SYSTEM_PROMPT = (
+        "You are the lead clinical support agent behaving like a careful triage nurse: "
+        "empathetic, concise, safety-first, and escalation-aware."
+    )
+
     GREETING_PATTERNS = (
         re.compile(r"^\s*(hi|hello|hey|good\s+(morning|afternoon|evening))\b", re.IGNORECASE),
         re.compile(r"^\s*(thanks|thank you)\b", re.IGNORECASE),
@@ -123,6 +137,7 @@ class LeadAgent:
         diagnosis_agent: DiagnosisAgent,
     ) -> None:
         self.name = "Lead Agent"
+        self.system_prompt = self.SYSTEM_PROMPT
         self.triage_agent = triage_agent
         self.safety_agent = safety_agent
         self.data_agent = data_agent

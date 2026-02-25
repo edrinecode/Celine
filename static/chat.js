@@ -12,8 +12,13 @@ function appendMessage(role, text) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
+function markSeen(role, text) {
+  const marker = `${role}|${text}`;
+  seenMessages.add(marker);
+}
+
 function rememberMessage(message) {
-  const marker = `${message.timestamp}|${message.role}|${message.content}`;
+  const marker = `${message.role}|${message.content}`;
   if (seenMessages.has(marker)) {
     return false;
   }
@@ -21,7 +26,9 @@ function rememberMessage(message) {
   return true;
 }
 
-appendMessage('assistant', 'Hi, I am Celine. I can help with initial clinical triage and care guidance.');
+const initialGreeting = 'Hi, I am Celine. I can help with initial clinical triage and care guidance.';
+appendMessage('assistant', initialGreeting);
+markSeen('assistant', initialGreeting);
 
 async function refreshConversation() {
   const response = await fetch(`/chat/history/${conversationId}`);
@@ -43,6 +50,7 @@ form.addEventListener('submit', async (event) => {
   if (!message) return;
 
   appendMessage('user', message);
+  markSeen('user', message);
   messageInput.value = '';
 
   const response = await fetch('/chat', {
@@ -58,9 +66,12 @@ form.addEventListener('submit', async (event) => {
 
   const payload = await response.json();
   appendMessage('assistant', payload.response);
+  markSeen('assistant', payload.response);
 
   if (payload.requires_handoff) {
-    appendMessage('assistant', `⚠️ Human handoff triggered: ${payload.handoff_reason}`);
+    const handoffMessage = `⚠️ Human handoff triggered: ${payload.handoff_reason}`;
+    appendMessage('assistant', handoffMessage);
+    markSeen('assistant', handoffMessage);
   }
 
   await refreshConversation();

@@ -45,7 +45,7 @@ class Coordinator:
         for agent in self.lead_agent.receive_user_message(user_message):
             trace.append(agent.run(user_message, history))
 
-        requires_handoff, reason = self._handoff_decision(trace)
+        requires_handoff, reason = self._handoff_decision(trace, user_message)
         final_response = self.lead_agent.format_for_user(trace, requires_handoff)
         self.memory.add_message(conversation_id, "assistant", final_response)
 
@@ -68,8 +68,12 @@ class Coordinator:
 
         return OrchestrationResult(response=response, handoff_ticket=ticket)
 
-    def _handoff_decision(self, trace: List[AgentResult]) -> tuple[bool, str | None]:
-        combined = "\n\n".join([f"{item.agent}: {item.summary}" for item in trace])
-        requires_handoff = any(pattern.search(combined) for pattern in self.URGENT_PATTERNS)
+    def _handoff_decision(self, trace: List[AgentResult], user_message: str) -> tuple[bool, str | None]:
+        user_signal = any(pattern.search(user_message) for pattern in self.URGENT_PATTERNS)
+        safety_signal = any(
+            item.agent == "Safety Agent" and item.summary.lower().startswith("potential high-risk symptoms detected")
+            for item in trace
+        )
+        requires_handoff = user_signal or safety_signal
         reason = "Potential high-acuity concern; escalation to human clinician recommended." if requires_handoff else None
         return requires_handoff, reason
