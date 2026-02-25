@@ -23,13 +23,13 @@ def test_handoff_for_high_risk_signal(tmp_path):
 def test_no_handoff_for_routine_request(tmp_path):
     coordinator = _build_coordinator(tmp_path)
     result = coordinator.process("abc2", "I need advice for mild seasonal allergies")
-    assert "I can help you narrow this down with a few quick questions" in result.response.response
+    assert "Here’s what I suggest next" in result.response.response
 
 
 def test_social_message_gets_human_friendly_reply(tmp_path):
     coordinator = _build_coordinator(tmp_path)
     result = coordinator.process("abc2-social", "hello, how are you")
-    assert "I’m here with you" in result.response.response
+    assert "I’m Celine" in result.response.response
 
 
 def test_no_handoff_for_simple_greeting(tmp_path):
@@ -37,7 +37,7 @@ def test_no_handoff_for_simple_greeting(tmp_path):
     result = coordinator.process("abc3", "hey there")
     assert result.response.requires_handoff is False
     consulted_agents = [entry.agent for entry in result.response.agent_trace]
-    assert consulted_agents == ["Triage Agent"]
+    assert consulted_agents == ["Conversation Agent"]
 
 
 def test_no_handoff_for_non_clinical_short_message(tmp_path):
@@ -51,9 +51,19 @@ def test_acknowledgement_message_stays_conversational(tmp_path):
     result = coordinator.process("abc3c", "ok")
     assert result.response.requires_handoff is False
     consulted_agents = [entry.agent for entry in result.response.agent_trace]
-    assert consulted_agents == ["Triage Agent"]
-    assert "If you just want to chat briefly first, that’s okay too." in result.response.response
+    assert consulted_agents == ["Conversation Agent"]
+    assert "I’m Celine" in result.response.response
 
+
+
+
+def test_name_query_returns_identity(tmp_path):
+    coordinator = _build_coordinator(tmp_path)
+    result = coordinator.process("abc-name", "whats ur name?")
+
+    assert "I'm Celine" in result.response.response
+    consulted_agents = [entry.agent for entry in result.response.agent_trace]
+    assert consulted_agents == ["Conversation Agent"]
 
 def test_clinical_message_selects_additional_agents(tmp_path):
     coordinator = _build_coordinator(tmp_path)
@@ -75,9 +85,11 @@ def test_lead_agent_handles_routing_and_formatting(tmp_path, monkeypatch):
 
     def fake_receive(message):
         called["routed"] = True
-        return [coordinator.triage_agent]
+        from app.agents import RoutingDecision
 
-    def fake_format(trace, requires_handoff, history):
+        return RoutingDecision(mode="clinical", agents=[coordinator.triage_agent])
+
+    def fake_format(routing, trace, requires_handoff, history):
         called["formatted"] = True
         return "lead-formatted-response"
 

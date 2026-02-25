@@ -3,7 +3,7 @@
 Celine is a starter implementation for an **intelligent AI healthcare chat interface** with:
 
 - **Coordinator orchestration**
-- Specialized agents: **Triage, Diagnosis, Safety, Data**
+- Specialized agents: **Conversation, Triage, Diagnosis, Safety, Data**
 - **Memory** for conversation context (persisted in SQLite)
 - Basic tools (risk keyword heuristic + timestamps)
 - **Human handoff admin queue** for high-acuity escalation
@@ -14,12 +14,11 @@ Celine is a starter implementation for an **intelligent AI healthcare chat inter
 ```text
 User
   ↓
-Coordinator Agent
+Lead Router Agent
   ↓
-Triage Agent
-Diagnosis Agent
-Safety Agent
-Data Agent
+Conversation Agent (for social/profile queries)
+OR
+Clinical Team (Triage → Safety → Data → Diagnosis, selected dynamically)
   ↓
 Final Aggregated Response
 ```
