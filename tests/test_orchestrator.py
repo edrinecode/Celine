@@ -23,7 +23,13 @@ def test_handoff_for_high_risk_signal(tmp_path):
 def test_no_handoff_for_routine_request(tmp_path):
     coordinator = _build_coordinator(tmp_path)
     result = coordinator.process("abc2", "I need advice for mild seasonal allergies")
-    assert "## Celine Lead Agent Summary" in result.response.response
+    assert "I can help you narrow this down with a few quick questions" in result.response.response
+
+
+def test_social_message_gets_human_friendly_reply(tmp_path):
+    coordinator = _build_coordinator(tmp_path)
+    result = coordinator.process("abc2-social", "hello, how are you")
+    assert "I’m doing well, and I’m here for you" in result.response.response
 
 
 def test_no_handoff_for_simple_greeting(tmp_path):

@@ -28,10 +28,10 @@ class BaseAgent:
             f"Current UTC time: {ClinicalTools.timestamp_tool()}\n"
             "Respond with concise clinical support summary, not final diagnosis."
         )
-        summary = self._invoke_llm(prompt)
+        summary = self._invoke_llm(prompt, user_message=user_message)
         return AgentResult(agent=self.name, summary=summary)
 
-    def _invoke_llm(self, prompt: str) -> str:
+    def _invoke_llm(self, prompt: str, user_message: str = "") -> str:
         api_key = os.getenv("GOOGLE_API_KEY")
         if api_key and ChatGoogleGenerativeAI:
             model = os.getenv("GOOGLE_MODEL", "gemini-1.5-flash")
@@ -50,7 +50,9 @@ class BaseAgent:
                     self.name,
                     model,
                 )
-        return f"[{self.name} fallback] {prompt[:260]}..."
+        excerpt = " ".join(user_message.split())[:160]
+        symptom_note = excerpt or 'No symptoms provided.'
+        return f"[{self.name} fallback] Unable to access model. Symptom note: {symptom_note}"
 
 
 class TriageAgent(BaseAgent):
@@ -143,27 +145,44 @@ class LeadAgent:
         return selected
 
     def format_for_user(self, agent_results: List[AgentResult], requires_handoff: bool) -> str:
-        consulted_agents = ", ".join(item.agent for item in agent_results)
-        next_step = (
-            "Escalating to a human clinician now."
-            if requires_handoff
-            else "Continuing with focused follow-up questions and routine guidance."
-        )
+        if self._is_social_only(agent_results):
+            return (
+                "Hi — I’m doing well, and I’m here for you. 😊 "
+                "If you want, you can share what symptoms or health concern you’re dealing with, "
+                "and I’ll guide you step by step."
+            )
 
-        detail_lines = "\n".join(
-            f"- **{item.agent}:** {self._compact(item.summary)}"
-            for item in agent_results
-        )
+        if requires_handoff:
+            return (
+                "Thanks for sharing this — your symptoms may need urgent medical attention. "
+                "I’m escalating this to a human clinician now. "
+                "If you have severe chest pain, trouble breathing, fainting, or worsening symptoms, "
+                "please call emergency services right away."
+            )
+
+        triage_summary = self._summary_for(agent_results, "Triage Agent")
+        opening = "Thanks for sharing that."
+        if "urgent" in triage_summary.lower():
+            opening = "Thanks for sharing that — this sounds important to assess promptly."
 
         return (
-            "## Celine Lead Agent Summary\n"
-            f"- **Consulted Agents:** {consulted_agents}\n"
-            f"- **Urgency:** {'Urgent review needed' if requires_handoff else 'Routine at this stage'}\n"
-            f"- **Next Step:** {next_step}\n\n"
-            "### Agent Notes\n"
-            f"{detail_lines}\n\n"
-            "_Informational support only; not a definitive medical diagnosis._"
+            f"{opening} "
+            "I can help you narrow this down with a few quick questions: "
+            "when did this start, how severe is it (0–10), and do you have any red-flag symptoms "
+            "like trouble breathing, chest pain, confusion, or fainting?\n\n"
+            "I can provide informational guidance, but this is not a definitive diagnosis."
         )
+
+    @staticmethod
+    def _is_social_only(agent_results: List[AgentResult]) -> bool:
+        return len(agent_results) == 1 and agent_results[0].agent == "Triage Agent"
+
+    @staticmethod
+    def _summary_for(agent_results: List[AgentResult], agent_name: str) -> str:
+        for result in agent_results:
+            if result.agent == agent_name:
+                return result.summary
+        return ""
 
     @staticmethod
     def _compact(text: str, limit: int = 220) -> str:
