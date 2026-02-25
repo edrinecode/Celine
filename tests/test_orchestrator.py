@@ -29,7 +29,7 @@ def test_no_handoff_for_routine_request(tmp_path):
 def test_social_message_gets_human_friendly_reply(tmp_path):
     coordinator = _build_coordinator(tmp_path)
     result = coordinator.process("abc2-social", "hello, how are you")
-    assert "I’m doing well, and I’m here for you" in result.response.response
+    assert "I’m here with you" in result.response.response
 
 
 def test_no_handoff_for_simple_greeting(tmp_path):
@@ -44,6 +44,15 @@ def test_no_handoff_for_non_clinical_short_message(tmp_path):
     coordinator = _build_coordinator(tmp_path)
     result = coordinator.process("abc3b", "hy")
     assert result.response.requires_handoff is False
+
+
+def test_acknowledgement_message_stays_conversational(tmp_path):
+    coordinator = _build_coordinator(tmp_path)
+    result = coordinator.process("abc3c", "ok")
+    assert result.response.requires_handoff is False
+    consulted_agents = [entry.agent for entry in result.response.agent_trace]
+    assert consulted_agents == ["Triage Agent"]
+    assert "If you just want to chat briefly first, that’s okay too." in result.response.response
 
 
 def test_clinical_message_selects_additional_agents(tmp_path):
@@ -134,6 +143,25 @@ def test_agent_uses_agent_specific_system_prompt(monkeypatch):
     assert result.summary
     assert "System directive:" in captured["system"]
     assert "Focus on patient safety constraints" in captured["system"]
+
+
+def test_admin_prompt_update(monkeypatch, tmp_path):
+    monkeypatch.setenv("CELINE_DB_PATH", str(tmp_path / "admin-prompts.db"))
+
+    import app.main as main_module
+
+    main_module = importlib.reload(main_module)
+    client = TestClient(main_module.app)
+
+    update = client.post(
+        "/admin/prompt",
+        data={"key": "prompt_triage_agent", "value": "Always ask one clarifying question first."},
+        follow_redirects=False,
+    )
+    assert update.status_code == 303
+
+    refreshed_page = client.get("/admin")
+    assert "Always ask one clarifying question first." in refreshed_page.text
 
 
 def test_admin_model_update(monkeypatch, tmp_path):

@@ -23,6 +23,21 @@
       </form>
     </section>
 
+
+
+    <section class="ticket">
+      <h2>Agent System Prompts</h2>
+      <p>Edit the core instruction text for each agent.</p>
+      {% for prompt in prompt_entries %}
+        <form method="post" action="/admin/prompt" class="chat-form">
+          <input type="hidden" name="key" value="{{ prompt.key }}" />
+          <label for="{{ prompt.key }}"><strong>{{ prompt.label }}</strong></label>
+          <textarea id="{{ prompt.key }}" name="value" required>{{ prompt.value }}</textarea>
+          <button type="submit">Update {{ prompt.label }}</button>
+        </form>
+      {% endfor %}
+    </section>
+
     <section class="tickets">
       <h2>Escalation Tickets</h2>
       {% if tickets %}
