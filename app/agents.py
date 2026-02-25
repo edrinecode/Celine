@@ -43,11 +43,20 @@ class IntentClassificationAgent:
         r"\b(pain|fever|cough|rash|vomit|nausea|headache|dizzy|bleeding|pregnan|symptom|breath)\b",
         re.IGNORECASE,
     )
+    TIME_PATTERNS = re.compile(r"\b(time|date|today)\b", re.IGNORECASE)
+    SERVICES_PATTERNS = re.compile(r"\b(service|services|offer|help with|what can you do)\b", re.IGNORECASE)
+    ROBOTIC_PATTERNS = re.compile(r"\b(robotic|bot|human|too scripted)\b", re.IGNORECASE)
 
     def classify(self, message: str) -> IntentResult:
         text = message.strip()
         if self.GREETING_PATTERNS.search(text):
             return IntentResult(intent="greeting", confidence=0.98)
+        if self.TIME_PATTERNS.search(text):
+            return IntentResult(intent="time_question", confidence=0.9)
+        if self.SERVICES_PATTERNS.search(text):
+            return IntentResult(intent="services_question", confidence=0.9)
+        if self.ROBOTIC_PATTERNS.search(text):
+            return IntentResult(intent="style_feedback", confidence=0.89)
         if self.MEDICAL_PATTERNS.search(text):
             return IntentResult(intent="medical_symptom", confidence=0.88)
         if self.APPOINTMENT_PATTERNS.search(text):
@@ -59,6 +68,19 @@ class IntentClassificationAgent:
 
 class FrontDeskAgent:
     def respond(self, intent: str) -> str:
+        if intent == "time_question":
+            now = datetime.now()
+            return f"It is {now.strftime('%I:%M %p')} on {now.strftime('%A, %B %d')}."
+        if intent == "services_question":
+            return (
+                "I can help with three things: (1) symptom triage, (2) routing appointment requests, and "
+                "(3) front-desk questions like billing, records, hours, or location."
+            )
+        if intent == "style_feedback":
+            return (
+                "Good feedback — I am deterministic for clinical safety, so my phrasing can sound structured. "
+                "I can still keep replies shorter and more conversational while staying within triage scope."
+            )
         if intent == "appointment_request":
             return (
                 "I can help route appointment requests. If you also have symptoms, tell me your main symptom so I can start triage safely."

@@ -79,7 +79,13 @@ class DeterministicOrchestrator:
                 self._transition(session, TriageState.GREETING, "greeting_route", {})
                 msg = self.front_desk.respond("greeting")
                 return self._finalize(conversation_id, session, msg, False, None)
-            if intent.intent in {"appointment_request", "admin_question"}:
+            if intent.intent in {
+                "appointment_request",
+                "admin_question",
+                "time_question",
+                "services_question",
+                "style_feedback",
+            }:
                 self._transition(session, TriageState.GREETING, "front_desk_route", {"intent": intent.intent})
                 msg = self.front_desk.respond(intent.intent)
                 return self._finalize(conversation_id, session, msg, False, None)
