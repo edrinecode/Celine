@@ -19,6 +19,11 @@ memory = ConversationMemory(store=store)
 coordinator = Coordinator(memory=memory)
 
 
+@app.get("/health")
+def healthcheck():
+    return {"ok": True, "service": app.title}
+
+
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
