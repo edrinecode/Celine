@@ -117,6 +117,28 @@ def test_unclear_follow_up_after_greeting_gets_clarifying_prompt(tmp_path):
     assert "what do you need help with" in result.response.response.lower()
 
 
+def test_time_question_gets_direct_answer(tmp_path):
+    orchestrator = build_orchestrator(tmp_path)
+    run_turns(orchestrator, "c7d", ["hello"])
+    result = orchestrator.process("c7d", "p7", "whats the time")
+    assert "it is" in result.response.response.lower()
+
+
+def test_services_question_gets_specific_capabilities(tmp_path):
+    orchestrator = build_orchestrator(tmp_path)
+    run_turns(orchestrator, "c7e", ["hello"])
+    result = orchestrator.process("c7e", "p7", "what services do you offer")
+    assert "symptom triage" in result.response.response.lower()
+    assert "appointment" in result.response.response.lower()
+
+
+def test_robotic_feedback_gets_explanation(tmp_path):
+    orchestrator = build_orchestrator(tmp_path)
+    run_turns(orchestrator, "c7f", ["hello"])
+    result = orchestrator.process("c7f", "p7", "why are you robotic")
+    assert "deterministic" in result.response.response.lower()
+
+
 def test_one_question_at_a_time_enforced(tmp_path):
     orchestrator = build_orchestrator(tmp_path)
     result = orchestrator.process("c8", "p8", "I have a headache")
