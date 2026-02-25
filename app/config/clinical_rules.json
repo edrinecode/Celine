@@ -1,0 +1,28 @@
+{
+  "rules": [
+    {
+      "id": "emergency_high_fever_stiff_neck",
+      "urgency": "EMERGENCY",
+      "phrases_all": ["fever", "stiff neck"]
+    },
+    {
+      "id": "urgent_chest_pain_age_over_40",
+      "urgency": "URGENT",
+      "phrases_any": ["chest pain"],
+      "min_age": 41
+    },
+    {
+      "id": "urgent_abdominal_pain_pregnancy",
+      "urgency": "URGENT",
+      "phrases_any": ["abdominal pain", "belly pain"],
+      "severity_min": 4
+    },
+    {
+      "id": "routine_mild_cold_short_duration",
+      "urgency": "ROUTINE",
+      "phrases_any": ["runny nose", "mild cough", "sore throat"],
+      "max_duration_days": 3,
+      "severity_min": 1
+    }
+  ]
+}

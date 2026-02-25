@@ -48,7 +48,7 @@ function rememberMessage(message) {
   return true;
 }
 
-const initialGreeting = 'Hi, I am Celine. I can help with initial clinical triage and care guidance.';
+const initialGreeting = 'Hi, I am Celine. This is a triage support tool and not a medical diagnosis.';
 appendMessage('assistant', initialGreeting);
 markSeen('assistant', initialGreeting);
 

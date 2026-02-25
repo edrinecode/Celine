@@ -1,7 +1,5 @@
 from datetime import datetime
-from typing import List
 
-from .models import ChatMessage
 from .storage import SQLiteStore
 
 
@@ -10,12 +8,8 @@ class ConversationMemory:
         self.store = store
 
     def add_message(self, conversation_id: str, role: str, content: str) -> None:
-        self.store.add_message(
-            conversation_id=conversation_id,
-            role=role,
-            content=content,
-            timestamp=datetime.utcnow(),
-        )
+        # Message writes are managed in orchestrator for strict ordering.
+        self.store.add_message(conversation_id, role, content, datetime.utcnow())
 
-    def get_messages(self, conversation_id: str) -> List[ChatMessage]:
-        return self.store.get_messages(conversation_id=conversation_id)
+    def get_messages(self, conversation_id: str):
+        return self.store.get_messages(conversation_id)

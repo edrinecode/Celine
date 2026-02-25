@@ -9,33 +9,14 @@
 <body>
   <main class="container">
     <header>
-      <h1>Human Handoff Queue</h1>
+      <h1>Hospital Triage Admin</h1>
       <a href="/" class="admin-link">Back to Chat</a>
     </header>
 
     <section class="ticket">
-      <h2>AI Model</h2>
-      <p><strong>Current:</strong> {{ current_model }}</p>
-      <form method="post" action="/admin/model">
-        <label for="model"><strong>Set model:</strong></label>
-        <input id="model" name="model" type="text" value="{{ current_model }}" />
-        <button type="submit">Update Model</button>
-      </form>
-    </section>
-
-
-
-    <section class="ticket">
-      <h2>Agent System Prompts</h2>
-      <p>Edit the core instruction text for each agent.</p>
-      {% for prompt in prompt_entries %}
-        <form method="post" action="/admin/prompt" class="chat-form">
-          <input type="hidden" name="key" value="{{ prompt.key }}" />
-          <label for="{{ prompt.key }}"><strong>{{ prompt.label }}</strong></label>
-          <textarea id="{{ prompt.key }}" name="value" required>{{ prompt.value }}</textarea>
-          <button type="submit">Update {{ prompt.label }}</button>
-        </form>
-      {% endfor %}
+      <h2>Runtime Mode</h2>
+      <p><strong>{{ current_model }}</strong></p>
+      <p>State transitions and emergency decisions are deterministic and rule-based.</p>
     </section>
 
     <section class="tickets">
@@ -49,7 +30,7 @@
             <p><strong>User message:</strong> {{ ticket.user_message }}</p>
             <p><strong>Created:</strong> {{ ticket.created_at }}</p>
             <p>
-              <a class="admin-link" href="/admin?conversation_id={{ ticket.conversation_id }}">Join Conversation</a>
+              <a class="admin-link" href="/admin?conversation_id={{ ticket.conversation_id }}">Open Session</a>
             </p>
             <form method="post" action="/admin/resolve">
               <input type="hidden" name="ticket_id" value="{{ ticket.ticket_id }}" />
@@ -77,8 +58,14 @@
           <textarea name="message" placeholder="Send message as human clinician..." required></textarea>
           <button type="submit">Send Human Reply</button>
         </form>
+
+        <h3>Session Snapshot</h3>
+        <pre>{{ selected_session | tojson(indent=2) }}</pre>
+
+        <h3>Audit Trail (Immutable Event Log)</h3>
+        <pre>{{ selected_audit | tojson(indent=2) }}</pre>
       {% else %}
-        <p>Select <strong>Join Conversation</strong> from a ticket to start chatting with the patient.</p>
+        <p>Select <strong>Open Session</strong> from a ticket to inspect full audit trails.</p>
       {% endif %}
     </section>
   </main>

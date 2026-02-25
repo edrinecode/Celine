@@ -1,108 +1,67 @@
-# Celine - AI Healthcare Multi-Agent Starter
+# Celine - Deterministic Hospital Triage Platform
 
-Celine is a starter implementation for an **intelligent AI healthcare chat interface** with:
+Production-oriented multi-agent triage intake service designed for hospital front-door workflows.
 
-- **Coordinator orchestration**
-- Specialized agents: **Conversation, Triage, Diagnosis, Safety, Data**
-- **Memory** for conversation context (persisted in SQLite)
-- Basic tools (risk keyword heuristic + timestamps)
-- **Human handoff admin queue** for high-acuity escalation
-- Gemini via **LangChain** (`langchain-google-genai`) when `GOOGLE_API_KEY` is set
+## Safety posture
 
-## Architecture
+- Deterministic state machine controls all transitions.
+- Red-flag detection runs before every response.
+- No diagnosis, no prescribing, no autonomous LLM state control.
+- Failsafe defaults to emergency recommendation on uncertain failures.
+- Every decision/event is appended to an immutable audit trail.
+- Session payloads and audit events are encrypted at rest (Fernet/AES-128 in CBC/HMAC construction).
 
-```text
-User
-  ↓
-Lead Router Agent
-  ↓
-Conversation Agent (for social/profile queries)
-OR
-Clinical Team (Triage → Safety → Data → Diagnosis, selected dynamically)
-  ↓
-Final Aggregated Response
-```
+## Core architecture
 
-## Run locally
+- **API Layer**: FastAPI (`app/main.py`)
+- **Orchestrator**: deterministic controller (`app/orchestrator.py`)
+- **Intent Classification Agent**: rule/pattern based (`app/agents.py`)
+- **Front Desk Agent**: non-clinical routing (`app/agents.py`)
+- **Triage Agent**: one-question-at-a-time structured intake (`app/agents.py`)
+- **Red-Flag Detection Engine**: hard-coded override rules (`app/agents.py`)
+- **Clinical Rules Engine**: editable config-based urgency logic (`app/config/clinical_rules.json`)
+- **Risk Scoring Agent**: supplemental signal only (`app/agents.py`)
+- **Escalation Agent**: emergency/urgent/routine handoff text (`app/agents.py`)
+- **Logging/Audit**: encrypted persistent events (`app/storage.py`)
+- **Admin dashboard**: queue + session + audit inspection (`templates/admin.html`)
+
+## State machine
+
+Allowed states:
+
+- `IDLE`
+- `GREETING`
+- `INTAKE`
+- `TRIAGE`
+- `EMERGENCY`
+- `ESCALATED`
+- `CLOSED`
+
+Emergency override (`EMERGENCY`) supersedes all agent outputs.
+
+## Run
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export GOOGLE_API_KEY=your_google_key_here   # optional for live Gemini calls
-export GOOGLE_MODEL=gemini-3-flash-preview    # optional model override
+export CELINE_ENCRYPTION_KEY="replace-with-secret"
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Then open:
+## API highlights
 
-- Chat UI: `http://localhost:8000`
-- Admin handoff: `http://localhost:8000/admin`
-- Health check: `http://localhost:8000/health`
+- `POST /chat`: process one user turn through deterministic orchestration
+- `GET /session/{conversation_id}`: encrypted session snapshot + audit trail
+- `GET /admin`: handoff queue + traceability dashboard
+- `GET /health`: service and mode status
 
-## Railway deployment
+## Compliance-ready implementation notes
 
-This project is ready for Railway as a Python web service.
+This starter includes conservative safeguards and traceability controls intended to support HIPAA/GDPR-aligned implementations. For production deployment, add:
 
-1. Push this repo to GitHub.
-2. In Railway, create a new project from GitHub and select this repo.
-3. Set environment variables:
-   - `GOOGLE_API_KEY` (required for live Gemini calls)
-   - `GOOGLE_MODEL` (optional; defaults to `gemini-3-flash-preview`)
-   - `CELINE_DB_PATH=data/celine.db` (optional; default already set)
-4. Railway will detect `Procfile` and run:
-   - `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-
-### Important deployment note
-
-- SQLite persistence is included for message memory and handoff tickets.
-- On Railway, SQLite works for starter/single-instance usage.
-- For production scale, migrate storage to managed Postgres/Redis for durability and multi-instance safety.
-
-## Post-deploy smoke test checklist
-
-Once logs show `Application startup complete` and `Uvicorn running`, run a quick validation:
-
-```bash
-# 1) Health endpoint should return HTTP 200 with {"ok": true, ...}
-curl -sS https://<your-deployment-url>/health
-
-# 2) Basic chat call should return JSON with `response`
-curl -sS https://<your-deployment-url>/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"conversation_id":"smoke-1","message":"I have a mild cough for 2 days"}'
-
-# 3) High-risk prompt should trigger handoff
-curl -sS https://<your-deployment-url>/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"conversation_id":"smoke-2","message":"I have chest pain and severe shortness of breath"}'
-```
-
-Then manually verify:
-
-1. Chat UI loads at `/`.
-2. Admin queue at `/admin` shows any new high-acuity handoff tickets.
-3. You can resolve a ticket from `/admin`.
-4. You can edit the active Gemini model from `/admin` (saved in SQLite settings).
-5. You can edit each agent's system prompt from `/admin` (Lead/Triage/Safety/Data/Diagnosis).
-
-## About the `google.generativeai` deprecation warning
-
-If you see:
-
-- `FutureWarning: All support for the google.generativeai package has ended ...`
-
-your app is still running, and this is not a startup failure. It comes from upstream dependencies used by `langchain-google-genai`.
-
-Near-term options:
-
-1. Keep running as-is while monitoring updates to `langchain-google-genai`.
-2. Plan a migration path to the `google.genai` SDK once your LangChain stack fully supports it.
-
-## Notes
-
-- If `GOOGLE_API_KEY` is not available, agents return deterministic fallback summaries so local development still works.
-- This project is a foundation. You can next add:
-  - clinician identity, RBAC, audit logging
-  - FHIR/EMR integrations
-  - retrieval + clinical guideline tool-calling pipelines
+- managed PostgreSQL + Redis
+- centralized IAM/JWT + RBAC
+- key management system (KMS/HSM)
+- immutable external log sink (SIEM/WORM)
+- formal clinical governance + validation protocols
