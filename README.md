@@ -31,7 +31,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 export GOOGLE_API_KEY=your_google_key_here   # optional for live Gemini calls
-export GOOGLE_MODEL=gemini-1.5-flash          # optional model override
+export GOOGLE_MODEL=gemini-3-flash-preview    # optional model override
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -49,7 +49,7 @@ This project is ready for Railway as a Python web service.
 2. In Railway, create a new project from GitHub and select this repo.
 3. Set environment variables:
    - `GOOGLE_API_KEY` (required for live Gemini calls)
-   - `GOOGLE_MODEL` (optional; defaults to `gemini-1.5-flash`)
+   - `GOOGLE_MODEL` (optional; defaults to `gemini-3-flash-preview`)
    - `CELINE_DB_PATH=data/celine.db` (optional; default already set)
 4. Railway will detect `Procfile` and run:
    - `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
@@ -84,6 +84,7 @@ Then manually verify:
 1. Chat UI loads at `/`.
 2. Admin queue at `/admin` shows any new high-acuity handoff tickets.
 3. You can resolve a ticket from `/admin`.
+4. You can edit the active Gemini model from `/admin` (saved in SQLite settings).
 
 ## About the `google.generativeai` deprecation warning
 

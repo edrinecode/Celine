@@ -13,6 +13,18 @@
       <a href="/" class="admin-link">Back to Chat</a>
     </header>
 
+
+
+    <section class="ticket">
+      <h2>AI Model</h2>
+      <p><strong>Current:</strong> {{ current_model }}</p>
+      <form method="post" action="/admin/model">
+        <label for="model"><strong>Set model:</strong></label>
+        <input id="model" name="model" type="text" value="{{ current_model }}" />
+        <button type="submit">Update Model</button>
+      </form>
+    </section>
+
     <section class="tickets">
       {% if tickets %}
         {% for ticket in tickets %}

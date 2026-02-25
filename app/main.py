@@ -19,6 +19,16 @@ memory = ConversationMemory(store=store)
 coordinator = Coordinator(memory=memory)
 
 
+def _initialize_model_setting() -> str:
+    model = os.getenv("GOOGLE_MODEL") or store.get_setting("google_model") or "gemini-3-flash-preview"
+    os.environ["GOOGLE_MODEL"] = model
+    store.set_setting("google_model", model)
+    return model
+
+
+DEFAULT_MODEL = _initialize_model_setting()
+
+
 @app.get("/health")
 def healthcheck():
     return {"ok": True, "service": app.title}
@@ -33,7 +43,11 @@ def home(request: Request):
 def admin(request: Request):
     return templates.TemplateResponse(
         "admin.html",
-        {"request": request, "tickets": store.list_handoff_tickets()},
+        {
+            "request": request,
+            "tickets": store.list_handoff_tickets(),
+            "current_model": store.get_setting("google_model") or DEFAULT_MODEL,
+        },
     )
 
 
@@ -49,3 +63,14 @@ def chat(chat_request: ChatRequest):
 def resolve_ticket(ticket_id: str = Form(...)):
     remaining = store.resolve_handoff_ticket(ticket_id=ticket_id)
     return {"ok": True, "remaining": remaining}
+
+
+@app.post("/admin/model")
+def update_model(model: str = Form(...)):
+    cleaned = model.strip()
+    if not cleaned:
+        return {"ok": False, "error": "Model cannot be empty."}
+
+    store.set_setting("google_model", cleaned)
+    os.environ["GOOGLE_MODEL"] = cleaned
+    return {"ok": True, "model": cleaned}
