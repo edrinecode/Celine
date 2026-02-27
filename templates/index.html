@@ -3,24 +3,127 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Celine AI Healthcare Assistant</title>
+  <title>Celine | AI Triage Operations Platform</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <main class="container">
-    <header>
-      <h1>Celine</h1>
-      <p>Deterministic, safety-first hospital triage support.</p>
-      <a href="/admin" class="admin-link">Admin Human Handoff</a>
-    </header>
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="#" class="brand">Celine</a>
+      <nav class="top-nav">
+        <a href="#capabilities">Capabilities</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#triage-chat">Live Triage</a>
+        <a href="/admin" class="admin-link">Admin Handoff</a>
+      </nav>
+    </div>
+  </header>
 
-    <section id="chat-window" class="chat-window"></section>
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <p class="kicker">Trusted Clinical Intake Automation</p>
+          <h1>Safer patient triage with a human-ready AI workflow.</h1>
+          <p class="hero-copy">Celine helps care teams capture symptoms, prioritize risk, and escalate urgent cases quickly. Built for providers that need consistency, auditability, and better patient experience from first contact.</p>
+          <div class="hero-actions">
+            <a href="#triage-chat" class="btn btn-primary">Start Triage Chat</a>
+            <a href="#pricing" class="btn btn-secondary">View Packages</a>
+          </div>
+        </div>
+        <aside class="hero-card">
+          <h2>Operational outcomes</h2>
+          <ul>
+            <li>Structured symptom collection with deterministic safety checks</li>
+            <li>Automatic human handoff for high-risk or sensitive scenarios</li>
+            <li>Traceable chat and session history for quality review</li>
+            <li>Designed for clinics, telehealth teams, and urgent care operations</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
 
-    <form id="chat-form" class="chat-form">
-      <textarea id="message" placeholder="Describe your symptoms for triage support..." required></textarea>
-      <button type="submit">Send</button>
-    </form>
+    <section id="capabilities" class="section">
+      <div class="container">
+        <h2>Clinical intake capabilities</h2>
+        <div class="card-grid">
+          <article class="info-card">
+            <h3>Risk-aware triage logic</h3>
+            <p>Captures presenting symptoms, duration, and context to route patients into low, medium, or high urgency pathways with clear guidance.</p>
+          </article>
+          <article class="info-card">
+            <h3>Human-in-the-loop escalation</h3>
+            <p>Escalates complex, pediatric, severe, or uncertain conversations to a clinician queue so patients receive timely expert support.</p>
+          </article>
+          <article class="info-card">
+            <h3>Auditable operations</h3>
+            <p>Maintains conversation and decision records that support internal governance, incident review, and continuous quality improvement.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="workflow" class="section section-soft">
+      <div class="container">
+        <h2>How Celine fits your care workflow</h2>
+        <ol class="flow-list">
+          <li><strong>Patient entry:</strong> Patients start from web, mobile, or assisted intake and describe symptoms in everyday language.</li>
+          <li><strong>AI triage:</strong> Celine runs deterministic symptom and safety checks to identify urgency and possible next actions.</li>
+          <li><strong>Escalation:</strong> Cases meeting escalation thresholds are forwarded to staff with full context and handoff notes.</li>
+          <li><strong>Follow-through:</strong> Teams coordinate appointments, urgent referrals, or emergency guidance with complete traceability.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="pricing" class="section">
+      <div class="container">
+        <h2>Subscription packages</h2>
+        <p class="section-lead">Choose the package that matches your patient volume, operational complexity, and compliance requirements.</p>
+        <div class="pricing-grid">
+          <article class="price-card">
+            <p class="plan">Starter Care</p>
+            <p class="price">$199<span>/month</span></p>
+            <p>For small clinics starting digital triage. Includes core chat intake, basic urgency rules, and admin handoff dashboard.</p>
+          </article>
+          <article class="price-card featured">
+            <p class="plan">Growth Triage</p>
+            <p class="price">$499<span>/month</span></p>
+            <p>For growing outpatient teams. Adds richer risk protocols, expanded audit history, and priority implementation support.</p>
+          </article>
+          <article class="price-card">
+            <p class="plan">Enterprise Clinical Ops</p>
+            <p class="price">Custom</p>
+            <p>For hospitals and multi-site networks that require custom workflows, governance controls, and dedicated support.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="triage-chat" class="section section-soft">
+      <div class="container">
+        <h2>Live triage assistant</h2>
+        <p class="section-lead">Use the secure intake chat below to simulate how Celine engages patients and collects triage context.</p>
+
+        <section id="chat-window" class="chat-window"></section>
+
+        <form id="chat-form" class="chat-form">
+          <textarea id="message" placeholder="Describe your symptoms for triage support..." required></textarea>
+          <button type="submit" class="btn btn-primary">Send Message</button>
+        </form>
+      </div>
+    </section>
   </main>
+
+  <footer class="site-footer">
+    <div class="container footer-wrap">
+      <p>© 2026 Celine Health Technologies. Safety-first triage support for care teams.</p>
+      <div>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/terms-of-service">Terms of Service</a>
+      </div>
+    </div>
+  </footer>
 
   <script src="/static/chat.js"></script>
 </body>

@@ -28,6 +28,18 @@ def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+
+
+@app.get("/privacy-policy", response_class=HTMLResponse)
+def privacy_policy(request: Request):
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+
+@app.get("/terms-of-service", response_class=HTMLResponse)
+def terms_of_service(request: Request):
+    return templates.TemplateResponse("terms.html", {"request": request})
+
+
 @app.get("/admin", response_class=HTMLResponse)
 def admin(request: Request, conversation_id: str | None = None):
     selected_messages = store.get_messages(conversation_id) if conversation_id else []
